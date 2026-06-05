@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/richardw/ip-anonymizer/internal/anonymize"
+	"github.com/Jubblin/ip-anonymizer/internal/anonymize"
 )
 
 func main() {

@@ -1,3 +1,3 @@
-module github.com/richardw/ip-anonymizer
+module github.com/Jubblin/ip-anonymizer
 
 go 1.26.2

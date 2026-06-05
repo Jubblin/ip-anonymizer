@@ -8,7 +8,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/richardw/ip-anonymizer/internal/mapping"
+	"github.com/Jubblin/ip-anonymizer/internal/mapping"
 )
 
 var ipv4Pattern = regexp.MustCompile(
