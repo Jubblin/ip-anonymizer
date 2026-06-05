@@ -1,6 +1,7 @@
 package anonymize
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -82,7 +83,10 @@ func ProcessFile(inputPath, outputPath, mappingPath string) error {
 
 	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		if err == nil {
-			return fmt.Errorf("decode JSON: multiple top-level values")
+			if _, err := input.Seek(0, io.SeekStart); err != nil {
+				return fmt.Errorf("rewind input for JSONL: %w", err)
+			}
+			return processJSONL(input, outputPath, store)
 		}
 		return fmt.Errorf("decode JSON: %w", err)
 	}
@@ -114,4 +118,62 @@ func ProcessFile(inputPath, outputPath, mappingPath string) error {
 	}
 
 	return nil
+}
+
+func processJSONL(input *os.File, outputPath string, store *mapping.Store) error {
+	var out io.Writer = os.Stdout
+	var output *os.File
+	if outputPath != "" {
+		f, err := os.Create(outputPath)
+		if err != nil {
+			return fmt.Errorf("create output: %w", err)
+		}
+		defer f.Close()
+		output = f
+		out = f
+	}
+
+	scanner := bufio.NewScanner(input)
+	buf := make([]byte, 0, 1024*1024)
+	scanner.Buffer(buf, 10*1024*1024)
+
+	encoder := json.NewEncoder(out)
+	encoder.SetEscapeHTML(false)
+
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Bytes()
+		if len(bytes.TrimSpace(line)) == 0 {
+			continue
+		}
+
+		var record any
+		decoder := json.NewDecoder(bytes.NewReader(line))
+		decoder.UseNumber()
+		if err := decoder.Decode(&record); err != nil {
+			return fmt.Errorf("decode JSONL line %d: %w", lineNum, err)
+		}
+
+		transformed, err := WalkJSON(record, store)
+		if err != nil {
+			return fmt.Errorf("anonymize JSONL line %d: %w", lineNum, err)
+		}
+
+		if err := encoder.Encode(transformed); err != nil {
+			return fmt.Errorf("encode JSONL line %d: %w", lineNum, err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("read JSONL: %w", err)
+	}
+
+	if output != nil {
+		if err := output.Sync(); err != nil {
+			return fmt.Errorf("sync output: %w", err)
+		}
+	}
+
+	return store.Save()
 }

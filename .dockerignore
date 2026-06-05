@@ -1,0 +1,6 @@
+.git
+.github
+*.md
+.ip-anonymizer-mapping.json
+*.ip-anonymizer-mapping.json
+ip-anonymizer

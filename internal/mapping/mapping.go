@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	version    = 1
-	maxAlloc   = 254
-	fakePrefix = "198.51.100."
+	version       = 1
+	maxAlloc      = 65024
+	legacyPoolEnd = 254
 )
 
 type fileData struct {
@@ -77,15 +77,32 @@ func (s *Store) Allocate(real string) (string, error) {
 		return fake, nil
 	}
 
-	if s.next > maxAlloc {
-		return "", fmt.Errorf("exhausted fake IP pool (max %d addresses in %s0/24)", maxAlloc, fakePrefix)
+	fake, err := fakeIPFromCounter(s.next)
+	if err != nil {
+		return "", err
 	}
 
-	fake := fmt.Sprintf("%s%d", fakePrefix, s.next)
 	s.mappings[real] = fake
 	s.next++
 	s.dirty = true
 	return fake, nil
+}
+
+func fakeIPFromCounter(n int) (string, error) {
+	if n < 1 || n > maxAlloc {
+		return "", fmt.Errorf("exhausted fake IP pool (max %d addresses in 198.51.0.0/16)", maxAlloc)
+	}
+	if n <= legacyPoolEnd {
+		return fmt.Sprintf("198.51.100.%d", n), nil
+	}
+
+	offset := n - legacyPoolEnd - 1
+	third := offset/254 + 1
+	fourth := offset%254 + 1
+	if third > 255 {
+		return "", fmt.Errorf("exhausted fake IP pool (max %d addresses in 198.51.0.0/16)", maxAlloc)
+	}
+	return fmt.Sprintf("198.51.%d.%d", third, fourth), nil
 }
 
 func (s *Store) Save() error {
