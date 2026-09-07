@@ -8,7 +8,7 @@ COPY internal/ ./internal/
 
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/ip-anonymizer .
 
-FROM alpine:3.23
+FROM alpine:3.24@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b
 
 RUN adduser -D -u 65532 -g 65532 appuser \
     && mkdir -p /data /mapping \
